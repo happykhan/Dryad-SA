@@ -1,6 +1,8 @@
 Dryad-SA
 ========
 
+Stand alone version of Dryad - A simple phylogenomics helper script
+
 Dryad is designed as an easy to use approach to find putative homologs from a
 list of whole genome sequences and format them for use in tree building programs
 like phyml, fasttree, phylip etc. 
