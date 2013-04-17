@@ -246,7 +246,10 @@ def main():
         Prorecords = SeqIO.parse(int_handle, "fasta")
         fast = {} 
         for pros in Prorecords:
-            fast[pros.description.split('|')[0].strip()] = pros 
+            gen = pros.description.split()[0].strip()
+            if pros.description.find('|') != -1 :
+                gen = gen  =  pros.description.split('|')[0].strip()
+            fast[gen] = pros 
         print 'indexed fasta' 
         for blast_record in blast_records:
             for alignment in blast_record.alignments:
@@ -258,12 +261,16 @@ def main():
 			refHead = refHead[3:] 
 		    tempdoop = None
                     if GBK and RefPro:
-                        tempse = fast[blast_record.query.split('|')[0].strip()]
+                        tempse = fast[pros.description.split()[0].strip()]
+                        if pros.description.find('|') != -1 :
+                            tempse = fast[blast_record.query.split('|')[0].strip()]
 			tempdoop = SeqRecord(Seq(str(tempse.seq),generic_protein),id=os.path.basename(genome).split('.')[0],description=refHead[0],name=refHead[1])
                         if tempdoop == None:
                             print   'Error:\t' + blast_record.query.split('|')[0]
                     elif GBK and not RefPro: 
-                        tempse = fast[blast_record.query.split('|')[0].strip()] 
+                        tempse = fast[pros.description.split()[0].strip()]
+                        if pros.description.find('|') != -1 :
+                            tempse = fast[blast_record.query.split('|')[0].strip()] 
                         seqseq = Seq(str(tempse.seq), generic_dna)
                         if hsp.frame[1] == -1:
                             seqseq = seqseq.reverse_complement()
