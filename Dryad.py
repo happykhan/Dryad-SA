@@ -176,9 +176,9 @@ def main():
             if not os.path.exists(genome) or os.path.getsize(genome) == 0:
                 output_handle = open(genome, "w")
                 print 'Creating fas: ' + genome 
-                for seq_record in SeqIO.parse(input_handle, INTYPE) :
+                for seq_record in SeqIO.parse(input_handle, INTYPE):
                     print "Dealing with GenBank record %s" % seq_record.id
-                    for seq_feature in seq_record.features :
+                    for seq_feature in seq_record.features:
                         if seq_feature.type== "CDS" :
                             na = ''
                             labled = True 
@@ -203,10 +203,12 @@ def main():
                                     print seq_feature
                             elif labled:
                                 try:
-                                    if seq_feature.qualifiers.has_key('pseudo') == False:
-                                        output_handle.write(">%s|%s [%s]\n%s\n" % (
+                                    descs = 'pseudogene'
+                                    if  seq_feature.qualifiers.has_key('product'): 
+                                        descs =  seq_feature.qualifiers['product']
+                                    output_handle.write(">%s|%s [%s]\n%s\n" % (
                                             na,
-                                            seq_record.name, seq_feature.qualifiers['product'][0],
+                                            seq_record.name, descs,
                                             seq_feature.extract(seq_record).seq))
                                 except Exception as e:
                                     print 'ERROR ' + str(e)
@@ -238,18 +240,11 @@ def main():
                     cline = NcbiblastnCommandline(query=genome, dust='no', task='blastn', db=refPro, evalue=Uevalue, outfmt=5, out=blastRes)
                 print(str(cline) + '\n')
                 cline()
-        
         print 'reading BLAST ' + blastRes
         result_handle = open(blastRes)
         blast_records = NCBIXML.parse(result_handle)
         int_handle  = open(genome, "r")
-        Prorecords = SeqIO.parse(int_handle, "fasta")
-        fast = {} 
-        for pros in Prorecords:
-            gen = pros.description.split()[0].strip()
-            if pros.description.find('|') != -1 :
-                gen = gen  =  pros.description.split('|')[0].strip()
-            fast[gen] = pros 
+        fast = SeqIO.to_dict(SeqIO.parse(int_handle, "fasta"))
         print 'indexed fasta' 
         for blast_record in blast_records:
             for alignment in blast_record.alignments:
@@ -261,16 +256,12 @@ def main():
 			refHead = refHead[3:] 
 		    tempdoop = None
                     if GBK and RefPro:
-                        tempse = fast[pros.description.split()[0].strip()]
-                        if pros.description.find('|') != -1 :
-                            tempse = fast[blast_record.query.split('|')[0].strip()]
+                        tempse = fast[blast_record.query.split()[0].strip()]
 			tempdoop = SeqRecord(Seq(str(tempse.seq),generic_protein),id=os.path.basename(genome).split('.')[0],description=refHead[0],name=refHead[1])
                         if tempdoop == None:
                             print   'Error:\t' + blast_record.query.split('|')[0]
                     elif GBK and not RefPro: 
-                        tempse = fast[pros.description.split()[0].strip()]
-                        if pros.description.find('|') != -1 :
-                            tempse = fast[blast_record.query.split('|')[0].strip()] 
+                        tempse = fast[blast_record.query.split()[0].strip()] 
                         seqseq = Seq(str(tempse.seq), generic_dna)
                         if hsp.frame[1] == -1:
                             seqseq = seqseq.reverse_complement()
@@ -359,18 +350,32 @@ def main():
     if not os.path.exists('fas'):
         os.mkdir('fas')
     # Output FASTA files
+    xmfaOut = open(outFile + 'all.xmfa','w')
     for name in masterSeq.keys():
         outFas = outFile + name + '.fas'
         SeqIO.write(masterSeq[name], 'fas/' + outFas, 'fasta')
-        if options.muscle or options.tree:
+        if options.muscle or options.tree or options.xfma:
             if not os.path.exists('aln'):
                 os.mkdir('aln')
             if not os.path.exists('phy'):
                 os.mkdir('phy')
             # Create MUSCLE alignment
             align(outFas, options.write)
+            if options.xfma:
+                # xfmaOut is a standard filestream handler.
+                # alignment is the alignmentIO record from the input file
+                alignment = AlignIO.read(open('aln/' +outFas + ".aln"), 'clustal') 
+                # Input alignment is a clustal alignment produced by muscle
+                # Writes the genename as a comment i.e. dnaG.aln -> #dnaG in the file
+                xmfaOut.write('#%s\n' %outFas ) 
+                # For each alignment record in a gene family, just dump as a 
+                # FASTA record. >%head\n%sequence 
+                for record in alignment:
+                    xmfaOut.write('>%s\n%s\n' %(record.id, record.seq))
+                # alignments in xfma have a '=' at the end. 
+                xmfaOut.write('=\n')
             if options.tree and not options.concat:
-                tree('phy/' + outFas + ".phy", RefPro, options.write) 
+                tree('phy/' + outFas + ".phy", RefPro, options.write)
     if options.concat:
         # Open muscle alignments
         print 'Concating sequences ' 
@@ -481,6 +486,7 @@ if __name__ == '__main__':
         parser.add_option('-g','--gbk',action='store_true', default=False,help='Genbank filelist')
         parser.add_option('-v', '--verbose', action='store_true', default=False, help='verbose output')
         parser.add_option('-l', '--len', action='store', type='int', help='minimum percent match for length')
+        parser.add_option('-x', '--xfma', action='store_true',help='Produce XFMA alignment for ClonalFrame')
         parser.add_option('-p', '--id', action='store', type='int', help='minutes percent identity')
         parser.add_option('-e', '--evalue', action='store', type='string', dest='eval', help='evalue cutoff for BLAST')
         parser.add_option('-t', '--tree', action='store_true', dest='tree', default=False, help='produce trees with PhyML')
