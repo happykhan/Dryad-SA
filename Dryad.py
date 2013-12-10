@@ -252,8 +252,7 @@ def main():
                 for hsp in alignment.hsps:
                     outLine  = []
                     refHead =  alignment.hit_def.split('|')
-		    if refHead[0] == 'gi':
-			refHead = refHead[3:] 
+		    if refHead[0] == 'gi': refHead = refHead[3:] 
 		    tempdoop = None
                     if GBK and RefPro:
                         tempse = fast[blast_record.query.split()[0].strip()]
